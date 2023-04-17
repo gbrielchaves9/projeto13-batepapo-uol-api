@@ -58,18 +58,59 @@ app.post("/participants", async (req, res) => {
 
 app.get('/participants', async (req, res) => {
     try {
-      const participants = await db.collection('participants').find().toArray();
-      if (participants.length > 0) {
-        res.json(participants);
-      } else {
-        res.json([]);
-      }
+        const participants = await db.collection('participants').find().toArray();
+        if (participants.length > 0) {
+            res.json(participants);
+        } else {
+            res.json([]);
+        }
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ message: 'Erro ao buscar participantes' });
+        console.log(error);
+        res.status(500).json({ message: 'Erro ao buscar participantes' });
     }
-  });
+});
 
+app.post('/messages', async (req, res) => {
+    const { to, text, type } = req.body;
+    const from = req.header('User');
+    const schema = Joi.object({
+        to: Joi.string().required(),
+        text: Joi.string().required(),
+        type: Joi.string().valid('message', 'private_message').required()
+    });
+    const { error } = schema.validate({ to, text, type });
+    if (error) return res.status(422).end();
+    const participant = await db.collection('participants').findOne({ name: from });
+    if (!participant) return res.status(422).end();
+
+
+    const time = dayjs().format('HH:mm:ss');
+    const message = { from, to, text, type, time };
+
+    await db.collection('messages').insertOne(message);
+
+    res.status(201).end();
+});
+
+
+app.get('/messages', async (req, res) => {
+    const user = req.header('User');
+  
+    const conditions = {
+      $or: [
+        { type: 'message', to: 'Todos' },
+        { type: 'private_message', $or: [{ to: user }, { from: user }] }
+      ]
+    };
+  
+    let limit = req.query.limit || 0;
+    if (isNaN(limit) || limit <= 0) {
+      return res.status(422).send({ error: 'Invalid limit parameter' });
+    }
+    const messages = await Message.find(conditions).sort({ time: -1 }).limit(parseInt(limit));
+  
+    res.send(messages);
+  });
 
 const PORT = 5000
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`))
