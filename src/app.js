@@ -94,66 +94,85 @@ app.post('/messages', async (req, res) => {
 
 
 app.get('/messages', async (req, res) => {
-    const userName = req.header('User');
-    const limit = parseInt(req.query.limit);
-    
-    if (isNaN(limit) || limit <= 0) {
-      return res.status(422).end();
-    }
-  
     try {
-      const participants = await db.collection('participants').findOne({ name: userName });
-      if (!participants) return res.status(404).end();
+      const user = req.headers.user; // obtém o usuário da requisição
   
-      const messages = await db.collection('messages').find({
+      // Verifica se o parâmetro limit é válido
+      const limit = parseInt(req.query.limit);
+      if (limit !== undefined && (isNaN(limit) || limit <= 0)) {
+        return res.status(422).json({ error: 'Invalid limit parameter' });
+      }
+  
+      // Busca as mensagens do banco de dados de acordo com o usuário da requisição
+      const messages = await Message.find({
         $or: [
-          { to: "Todos" },
-          { to: userName },
-          { from: userName, type: "private_message" }
+          { to: user },
+          { from: user },
+          { to: 'Todos' },
+          { to: { $exists: false } }
         ]
-      }).limit(limit).toArray();
+      })
+        .sort({ createdAt: 'desc' })
+        .limit(limit);
   
-      res.json(messages);
+      // Retorna uma lista vazia caso não haja mensagens, mas há cadastros
+      if (messages.length === 0) {
+        return res.json([]);
+      }
+  
+      // Filtra somente as mensagens públicas do chat caso não tenha sido passado um limite
+      if (limit === undefined) {
+        const publicMessages = messages.filter(message => !message.to);
+        return res.json(publicMessages);
+      }
+  
+      // Retorna as mensagens no formato e valor esperados
+      const formattedMessages = messages.map(message => ({
+        from: message.from,
+        to: message.to,
+        text: message.text,
+        createdAt: message.createdAt
+      }));
+      return res.json(formattedMessages);
+  
     } catch (error) {
-      console.log(error);
-      res.status(500).json({ message: 'Erro ao buscar mensagens' });
+      return res.status(500).json({ error: 'Error retrieving messages' });
     }
   });
-  
 
 
 
-  app.post("/status", async (req, res) => {
+app.post("/status", async (req, res) => {
     const userName = req.header('User');
     if (!userName) {
-      return res.status(404).send();
+        return res.status(404).send();
     }
     const participants = db.collection("participants");
     const participant = await participants.findOne({ name: userName });
     if (!participant) {
-      return res.status(404).send();
+        return res.status(404).send();
     }
     await participants.updateOne({ name: userName }, { $set: { lastStatus: Date.now() } });
     res.status(200).send();
-  });
-  
-  setInterval(async () => {
+});
+
+setInterval(async () => {
     const participants = await db.collection("participants").find().toArray();
     const messages = db.collection("messages");
     const time = Date.now() - 10000;
     const removedParticipants = participants.filter((participant) => participant.lastStatus < time);
     removedParticipants.forEach(async (participant) => {
-      await messages.insertOne({
-        from: participant.name,
-        to: "Todos",
-        text: "sai da sala...",
-        type: "status",
-        time: dayjs().format("HH:mm:ss"),
-      });
+        await messages.insertOne({
+            from: participant.name,
+            to: "Todos",
+            text: "sai da sala...",
+            type: "status",
+            time: dayjs().format("HH:mm:ss"),
+        });
     });
     await db.collection("participants").deleteMany({ lastStatus: { $lt: time } });
-  }, 15000);
+}, 15000);
 
-  
+
 const PORT = 5000
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`))
