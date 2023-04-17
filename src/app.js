@@ -94,31 +94,32 @@ app.post('/messages', async (req, res) => {
 
 
 app.get('/messages', async (req, res) => {
-    const user = req.header('User');
-  
-    // Condições para obter as mensagens
-    const conditions = {
-      $or: [
-        { type: 'message', to: 'Todos' },
-        { type: 'private_message', $or: [{ to: user }, { from: user }] }
-      ]
-    };
-  
-    // Obter o limite de mensagens a serem retornadas
-    const limit = parseInt(req.query.limit || 0);
+    const userName = req.header('User');
+    const limit = parseInt(req.query.limit);
+    
     if (isNaN(limit) || limit <= 0) {
-      return res.status(422).send({ error: 'Invalid limit parameter' });
+      return res.status(422).end();
     }
   
-    // Obter as mensagens que atendem as condições e o limite
-    const messages = await db.collection('messages')
-      .find(conditions)
-      .sort({ time: -1 })
-      .limit(limit)
-      .toArray();
+    try {
+      const participants = await db.collection('participants').findOne({ name: userName });
+      if (!participants) return res.status(404).end();
   
-    res.send(messages);
+      const messages = await db.collection('messages').find({
+        $or: [
+          { to: "Todos" },
+          { to: userName },
+          { from: userName, type: "private_message" }
+        ]
+      }).limit(limit).toArray();
+  
+      res.json(messages);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: 'Erro ao buscar mensagens' });
+    }
   });
+  
 
 
 
