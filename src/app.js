@@ -6,11 +6,9 @@ import Joi from "joi";
 import dayjs from "dayjs";
 const app = express()
 
-
 app.use(express.json())
 app.use(cors())
 dotenv.config()
-
 
 let db
 const mongoClient = new MongoClient(process.env.DATABASE_URL)
@@ -119,9 +117,6 @@ app.get('/messages', async (req, res) => {
         res.status(500).json({ message: 'Erro ao buscar mensagens' });
     }
 });
-
-
-
 
 app.post("/status", async (req, res) => {
     const userName = req.header('User');
