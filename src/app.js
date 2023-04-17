@@ -96,6 +96,7 @@ app.post('/messages', async (req, res) => {
 app.get('/messages', async (req, res) => {
     const user = req.header('User');
   
+    // Condições para obter as mensagens
     const conditions = {
       $or: [
         { type: 'message', to: 'Todos' },
@@ -103,11 +104,18 @@ app.get('/messages', async (req, res) => {
       ]
     };
   
-    let limit = req.query.limit || 0;
+    // Obter o limite de mensagens a serem retornadas
+    const limit = parseInt(req.query.limit || 0);
     if (isNaN(limit) || limit <= 0) {
       return res.status(422).send({ error: 'Invalid limit parameter' });
     }
-    const messages = await Message.find(conditions).sort({ time: -1 }).limit(parseInt(limit));
+  
+    // Obter as mensagens que atendem as condições e o limite
+    const messages = await db.collection('messages')
+      .find(conditions)
+      .sort({ time: -1 })
+      .limit(limit)
+      .toArray();
   
     res.send(messages);
   });
