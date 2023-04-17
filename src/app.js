@@ -120,6 +120,8 @@ app.get('/messages', async (req, res) => {
     res.send(messages);
   });
 
+
+
   app.post("/status", async (req, res) => {
     const userName = req.header('User');
     if (!userName) {
