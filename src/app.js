@@ -143,8 +143,6 @@ app.get('/messages', async (req, res) => {
     await db.collection("participants").deleteMany({ lastStatus: { $lt: time } });
   }, 15000);
 
- 
-
 
 const PORT = 5000
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`))
