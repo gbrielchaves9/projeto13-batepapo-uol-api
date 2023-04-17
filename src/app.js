@@ -112,23 +112,38 @@ app.get('/messages', async (req, res) => {
     res.send(messages);
   });
 
-  app.post('/status', async (req, res) => {
-    const participantName = req.header('User');
-    if (!participantName) {
+  app.post("/status", async (req, res) => {
+    const userName = req.header('User');
+    if (!userName) {
       return res.status(404).send();
     }
-  
-    const participants = db.collection('participants');
-    const participant = await participants.findOne({ name: participantName });
+    const participants = db.collection("participants");
+    const participant = await participants.findOne({ name: userName });
     if (!participant) {
       return res.status(404).send();
     }
-  
-    const update = { $set: { lastStatus: Date.now() } };
-    await participants.updateOne({ name: participantName }, update);
-  
+    await participants.updateOne({ name: userName }, { $set: { lastStatus: Date.now() } });
     res.status(200).send();
   });
+  
+  setInterval(async () => {
+    const participants = await db.collection("participants").find().toArray();
+    const messages = db.collection("messages");
+    const time = Date.now() - 10000;
+    const removedParticipants = participants.filter((participant) => participant.lastStatus < time);
+    removedParticipants.forEach(async (participant) => {
+      await messages.insertOne({
+        from: participant.name,
+        to: "Todos",
+        text: "sai da sala...",
+        type: "status",
+        time: dayjs().format("HH:mm:ss"),
+      });
+    });
+    await db.collection("participants").deleteMany({ lastStatus: { $lt: time } });
+  }, 15000);
+
+ 
 
 
 const PORT = 5000
