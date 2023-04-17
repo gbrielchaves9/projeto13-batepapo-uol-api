@@ -2,14 +2,20 @@
   "name": "projeto13-batepapo-uol-api",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "./src/app.js",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "mongodb": "^5.2.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node ./src/app.js",
+    "dev": "nodemon ./src/app.js"
   },
   "repository": {
     "type": "git",
