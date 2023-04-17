@@ -94,51 +94,32 @@ app.post('/messages', async (req, res) => {
 
 
 app.get('/messages', async (req, res) => {
-    try {
-      const user = req.headers.user; // obtém o usuário da requisição
-  
-      // Verifica se o parâmetro limit é válido
-      const limit = parseInt(req.query.limit);
-      if (limit !== undefined && (isNaN(limit) || limit <= 0)) {
-        return res.status(422).json({ error: 'Invalid limit parameter' });
-      }
-  
-      // Busca as mensagens do banco de dados de acordo com o usuário da requisição
-      const messages = await Message.find({
-        $or: [
-          { to: user },
-          { from: user },
-          { to: 'Todos' },
-          { to: { $exists: false } }
-        ]
-      })
-        .sort({ createdAt: 'desc' })
-        .limit(limit);
-  
-      // Retorna uma lista vazia caso não haja mensagens, mas há cadastros
-      if (messages.length === 0) {
-        return res.json([]);
-      }
-  
-      // Filtra somente as mensagens públicas do chat caso não tenha sido passado um limite
-      if (limit === undefined) {
-        const publicMessages = messages.filter(message => !message.to);
-        return res.json(publicMessages);
-      }
-  
-      // Retorna as mensagens no formato e valor esperados
-      const formattedMessages = messages.map(message => ({
-        from: message.from,
-        to: message.to,
-        text: message.text,
-        createdAt: message.createdAt
-      }));
-      return res.json(formattedMessages);
-  
-    } catch (error) {
-      return res.status(500).json({ error: 'Error retrieving messages' });
+    const userName = req.header('User');
+    const limit = parseInt(req.query.limit);
+
+    if (isNaN(limit) || limit <= 0) {
+        return res.status(422).end();
     }
-  });
+
+    try {
+        const participants = await db.collection('participants').findOne({ name: userName });
+        if (!participants) return res.status(404).end();
+
+        const messages = await db.collection('messages').find({
+            $or: [
+                { to: "Todos" },
+                { to: userName },
+                { from: userName, type: "private_message" }
+            ]
+        }).limit(limit).toArray();
+
+        res.json(messages);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: 'Erro ao buscar mensagens' });
+    }
+});
+
 
 
 
