@@ -74,23 +74,37 @@ app.post('/messages', async (req, res) => {
     const { to, text, type } = req.body;
     const from = req.header('User');
     const schema = Joi.object({
-        to: Joi.string().required(),
-        text: Joi.string().required(),
-        type: Joi.string().valid('message', 'private_message').required()
+      to: Joi.string().required(),
+      text: Joi.string().required(),
+      type: Joi.string().valid('message', 'private_message').required(),
     });
     const { error } = schema.validate({ to, text, type });
-    if (error) return res.status(422).end();
+    if (error) {
+      return res.status(422).end();
+    }
+  
     const participant = await db.collection('participants').findOne({ name: from });
-    if (!participant) return res.status(422).end();
-
-
+    if (!participant) {
+      return res.status(422).end();
+    }
+  
+    const participantExists = await db.collection('participants').findOne({ name: to });
+    if (!participantExists) {
+      return res.status(422).end();
+    }
+  
     const time = dayjs().format('HH:mm:ss');
-    const message = { from, to, text, type, time };
-
+    const message = {
+      from,
+      to,
+      text,
+      type,
+      time,
+    };
+  
     await db.collection('messages').insertOne(message);
-
     res.status(201).end();
-});
+  });
 
 
 app.get('/messages', async (req, res) => {
@@ -143,6 +157,6 @@ app.get('/messages', async (req, res) => {
     await db.collection("participants").deleteMany({ lastStatus: { $lt: time } });
   }, 15000);
 
-
+  
 const PORT = 5000
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`))
